@@ -1,22 +1,22 @@
-const puppeteer = require('puppeteer');
 require('dotenv').config();
 
-let browser, page;
+const sessionFactory = require('./factories/sessionFactory');
+const userFactory = require('./factories/userFactory');
+const Page = require('./helper/page');
+
+let page;
 
 beforeEach(async () => {
-  browser = await puppeteer.launch({
-    headless: false,
-  });
-  page = await browser.newPage();
+  page = await Page.build();
   await page.goto('localhost:3000');
 });
 
 afterEach(async () => {
-  await browser.close();
+  await page.close();
 });
 
 test('the header has the correct text', async () => {
-  const text = await page.$eval('a.brand-logo', (el) => el.innerHTML);
+  const text = await page.getContentOf('a.brand-logo');
 
   expect(text).toEqual('Blogster');
 });
@@ -30,25 +30,9 @@ test('clicking login starting oauth flow', async () => {
 });
 
 test('sign in and check for logout button', async () => {
-  const id = '656621587649016db3974a44';
+  await page.login();
 
-  const buffer = require('safe-buffer').Buffer;
+  const text = await page.getContentOf('a[href="/auth/logout"]');
 
-  const sessionObject = {
-    passport: { user: id },
-  };
-
-  const sessionString = buffer
-    .from(JSON.stringify(sessionObject))
-    .toString('base64');
-
-  const Keygrip = require('keygrip');
-  const key = process.env.COOKIE_KEY;
-
-  const keygrip = new Keygrip([JSON.stringify(key)]);
-  const sig = keygrip.sign('session=' + keygrip);
-
-  await page.setCookie({ name: 'session', value: sessionString });
-  await page.setCookie({ name: 'session.sig', value: sig });
-  await page.goto('localhost:3000');
+  expect(text).toEqual('Logout');
 });
